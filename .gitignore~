@@ -1,5 +1,0 @@
-.DS_Store
-batchfile.slurm
-crosstest_batchfile.slurm
-tunning_batchfile.slurm
-__pycache__/
