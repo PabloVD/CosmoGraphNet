@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------
 # List of constants and some common functions
 # Author: Pablo Villanueva Domingo
-# Last update: 10/11/21
+# Last update: 4/22
 #----------------------------------------------------------------------
 
 import numpy as np
@@ -39,15 +39,12 @@ valid_size, test_size = 0.15, 0.15
 # Batch size
 batch_size = 25
 
-
-
 # Number of k bins in the power spectrum
 ps_size = 79
 
 #--- FUNCTIONS ---#
 
-
 # Choose color depending on the CAMELS simulation suite
 def colorsuite(suite):
     if suite=="IllustrisTNG":   return "purple"
-    elif suite=="SIMBA":            return "deepskyblue"
+    elif suite=="SIMBA":            return "dodgerblue"

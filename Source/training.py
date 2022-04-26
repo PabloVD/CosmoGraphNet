@@ -1,11 +1,10 @@
 #----------------------------------------------------------------------
 # Routines for training and testing the GNNs
 # Author: Pablo Villanueva Domingo
-# Last update: 10/11/21
+# Last update: 4/22
 #----------------------------------------------------------------------
 
 from Source.constants import *
-from scipy.spatial.transform import Rotation as Rot
 
 
 # Training step
@@ -14,12 +13,6 @@ def train(loader, model, hparams, optimizer, scheduler):
 
     loss_tot = 0
     for data in loader:  # Iterate in batches over the training dataset.
-
-        # Rotate randomly for data augmentation
-        """rotmat = Rot.random().as_matrix()
-        data.x[:,:3] = torch.tensor([rotmat.dot(p) for p in data.x[:,:3]], dtype=torch.float32)
-        if not hparams.only_positions:
-            data.x[:,-3:] = torch.tensor([rotmat.dot(p) for p in data.x[:,-3:]], dtype=torch.float32)"""
 
         data.to(device)
         optimizer.zero_grad()  # Clear gradients.
@@ -34,6 +27,7 @@ def train(loader, model, hparams, optimizer, scheduler):
             loss_lfi = torch.mean(torch.sum(((y_out - data.y)**2. - err_out**2.)**2., axis=1) , axis=0)
             loss = torch.log(loss_mse) + torch.log(loss_lfi)
 
+        # Else, perform standard regression
         elif hparams.outmode=="ps":
             loss_mse = torch.mean(torch.sum((out - data.y)**2., axis=1) , axis=0)
             loss = torch.log(loss_mse)
@@ -49,12 +43,6 @@ def train(loader, model, hparams, optimizer, scheduler):
 def test(loader, model, hparams):
     model.eval()
 
-    outsOm = np.zeros((1))
-    truesOm = np.zeros((1))
-    yerrorsOm = np.zeros((1))
-    outsSig = np.zeros((1))
-    truesSig = np.zeros((1))
-    yerrorsSig = np.zeros((1))
     outsPS = np.zeros((1,ps_size))
     truesPS = np.zeros((1,ps_size))
 
@@ -92,15 +80,6 @@ def test(loader, model, hparams):
                 trueparams = np.append(trueparams, data.y.detach().cpu().numpy(), 0)
                 outparams = np.append(outparams, y_out.detach().cpu().numpy(), 0)
                 outerrparams  = np.append(outerrparams, err_out.detach().cpu().numpy(), 0)
-                """
-                truesOm = np.append(truesOm, data.y[:,0].detach().cpu().numpy(), 0)
-                outsOm = np.append(outsOm, y_out[:,0].detach().cpu().numpy(), 0)
-                yerrorsOm = np.append(yerrorsOm, err_out[:,0].detach().cpu().numpy(), 0)
-                if hparams.pred_params==2:
-                    truesSig = np.append(truesSig, data.y[:,1].detach().cpu().numpy(), 0)
-                    outsSig = np.append(outsSig, y_out[:,1].detach().cpu().numpy(), 0)
-                    yerrorsSig = np.append(yerrorsSig, err_out[:,1].detach().cpu().numpy(), 0)
-                """
 
             elif hparams.outmode=="ps":
                 # Append true values and predictions
@@ -113,29 +92,17 @@ def test(loader, model, hparams):
         np.save("Outputs/trues_"+hparams.name_model()+".npy",trueparams)
         np.save("Outputs/outputs_"+hparams.name_model()+".npy",outparams)
         np.save("Outputs/errors_"+hparams.name_model()+".npy",outerrparams)
-        """
-        np.save("Outputs/outputsOm_"+hparams.name_model()+".npy",outsOm)
-        np.save("Outputs/truesOm_"+hparams.name_model()+".npy",truesOm)
-        np.save("Outputs/errorsOm_"+hparams.name_model()+".npy",yerrorsOm)
-        if hparams.pred_params==2:
-            np.save("Outputs/outputsSig_"+hparams.name_model()+".npy",outsSig)
-            np.save("Outputs/truesSig_"+hparams.name_model()+".npy",truesSig)
-            np.save("Outputs/errorsSig_"+hparams.name_model()+".npy",yerrorsSig)
-        """
 
     elif hparams.outmode=="ps":
         np.save("Outputs/outputsPS_"+hparams.name_model()+".npy",outsPS)
         np.save("Outputs/truesPS_"+hparams.name_model()+".npy",truesPS)
-
-
 
     return loss_tot/len(loader), np.array(errs).mean(axis=0)
 
 # Training procedure
 def training_routine(model, train_loader, test_loader, hparams, verbose=True):
 
-    #use_model, learning_rate, weight_decay, n_layers, k_nn, n_epochs, training, simsuite, simset, n_sims = hparams
-
+    # Define optimizer and learning rate cyclic scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=hparams.learning_rate, weight_decay=hparams.weight_decay)
     scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=hparams.learning_rate, max_lr=1.e-3, cycle_momentum=False)
 

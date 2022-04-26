@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------
-# Script to visualize halos as graphs
+# Script to visualize galaxy catalogues as graphs
 # Author: Pablo Villanueva Domingo
-# Last update: 10/11/21
+# Last update: 4/22
 #----------------------------------------------------------------------
 
 import time, datetime
@@ -44,24 +44,17 @@ def visualize_graph(data, ind, sizes=0.1, projection="3d", edge_index=None):
     elif projection=="2d":
         ax.scatter(pos[:, 0], pos[:, 1], s=sizes, zorder=1000, alpha=0.5)
 
-    #plt.axis('off')
-    """
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
-    """
     ax.xaxis.set_tick_params(labelsize=fontsize)
     ax.yaxis.set_tick_params(labelsize=fontsize)
     ax.zaxis.set_tick_params(labelsize=fontsize)
-    #"""
 
     fig.savefig("Plots/visualize_graph_"+str(ind), bbox_inches='tight', dpi=300)
     plt.close(fig)
 
-
+# Plot the degree distribution of the graph (see e.g. http://networksciencebook.com/)
 def plot_degree_distribution(degrees):
 
-    listbins = np.linspace(0,80,num=12)#np.logspace(0,2,num=20)
+    listbins = np.linspace(0,80,num=12)
     deg_dist = []
 
     for array in degrees:
@@ -93,7 +86,8 @@ def display_graphs(simsuite, n_sims, r_link, simset="LH", showgraph=True, get_de
     for simnumber in range(n_sims):
         simpath = simpathroot + simsuite + "/"+simset+"_"
         catalogue = simpath + str(simnumber)+"/fof_subhalo_tab_033.hdf5"
-        # read the catalogue
+
+        # Read the catalogue
         f     = h5py.File(catalogue, 'r')
         pos   = f['/Subhalo/SubhaloPos'][:]/boxsize
         Nstar = f['/Subhalo/SubhaloLenType'][:,4]       #number of stars
@@ -111,7 +105,7 @@ def display_graphs(simsuite, n_sims, r_link, simset="LH", showgraph=True, get_de
 
         if showgraph:
             #visualize_graph(data, simnumber, "2d", edge_index)
-            visualize_graph(data, simnumber, 0.5*data.x[:,3], "3d", data.edge_index)
+            visualize_graph(data, simnumber, projection="3d", edge_index=data.edge_index)
 
         if get_degree:
             degrees.append( degree(edge_index[0], data.num_nodes).numpy() )

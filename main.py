@@ -1,7 +1,7 @@
 #----------------------------------------------------
 # Main routine for training and testing GNN models
 # Author: Pablo Villanueva Domingo
-# Last update: 10/11/21
+# Last update: 4/22
 #----------------------------------------------------
 
 import time, datetime, psutil
@@ -14,9 +14,6 @@ from Source.load_data import *
 # Main routine to train the neural net
 # If testsuite==True, it takes a model already pretrained in the other suite and tests it in the selected one
 def main(hparams, verbose = True, testsuite = False):
-
-    hparams.n_sims = 30
-    hparams.n_epochs = 5
 
     # Load data and create dataset
     dataset = create_dataset(hparams)
@@ -79,10 +76,7 @@ def main(hparams, verbose = True, testsuite = False):
 
     # Plot power spectrum and relative error
     elif hparams.outmode=="ps":
-
-        plot_relerr(hparams)
-
-        plot_ps(hparams, testsuite)
+        plot_ps(hparams)
 
     return test_loss
 

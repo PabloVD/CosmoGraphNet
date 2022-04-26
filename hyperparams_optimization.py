@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------
 # Script for optimizing the hyperparameters of the network using optuna
 # Author: Pablo Villanueva Domingo
-# Last update: 14/5/21
+# Last update: 4/22
 #----------------------------------------------------------------------
 
 import optuna
@@ -22,10 +22,10 @@ def objective(trial):
     # Hyperparameters to optimize
     learning_rate = trial.suggest_float("learning_rate", 1e-8, 1e-4, log=True)
     #weight_decay = trial.suggest_float("weight_decay", 1e-8, 1e-6, log=True)
+    weight_decay = 1.e-7
     n_layers = trial.suggest_int("n_layers", 1, 5)
     hidden_channels = trial.suggest_categorical("hidden_channels", [64, 128, 256])
     r_link = trial.suggest_float("r_link", 5.e-3, 5.e-2, log=True)
-    weight_decay = 1.e-7
 
     # Some verbose
     print('\nTrial number: {}'.format(trial.number))
@@ -48,6 +48,7 @@ def objective(trial):
     hparams.simset = simset
     hparams.n_sims = n_sims
 
+    # Run main routine
     min_test_loss = main(hparams, verbose = False)
 
     if torch.cuda.is_available():
@@ -56,6 +57,7 @@ def objective(trial):
     return min_test_loss
 
 
+#--- MAIN ---#
 
 if __name__ == "__main__":
 
@@ -67,19 +69,18 @@ if __name__ == "__main__":
 
     # Optuna parameters
     storage = "sqlite:///"+os.getcwd()+"/optuna_"+simsuite+"_"+simset
-    #storage = "sqlite:///optuna_"+simsuite+"_"+simset
     study_name = "gnn"
     n_trials   = 30
 
+    # Define sampler and start optimization
     sampler = optuna.samplers.TPESampler(n_startup_trials=10)
     study = optuna.create_study(study_name=study_name, sampler=sampler, storage=storage, load_if_exists=True)
     study.optimize(objective, n_trials, gc_after_trial=True)
 
+    # Print info for best trial
     print("Best trial:")
     trial = study.best_trial
-
     print("  Value: ", trial.value)
-
     print("  Params: ")
     for key, value in trial.params.items():
         print("    {}: {}".format(key, value))
@@ -89,6 +90,7 @@ if __name__ == "__main__":
     hparams.hidden_channels = trial.params["hidden_channels"]
     hparams.r_link = trial.params["r_link"]
 
+    # Save best model and plots
     if not os.path.exists("Best"):
         os.mkdir("Best")
     # Change nominal suite to read correct files (actually in ps mode both suites are employed)
@@ -105,7 +107,7 @@ if __name__ == "__main__":
         if os.path.exists(file):
             os.system("cp "+file+" Best/.")
 
-    # Visualization of results
+    # Visualization of optimization results
     fig = plot_optimization_history(study)
     fig.write_image("Plots/optuna_optimization_history_"+simsuite+".png")
 

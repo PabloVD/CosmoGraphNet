@@ -11,7 +11,7 @@ See the paper [arXiv:2204.xxxxx](https://arxiv.org/abs/2204.xxxxx) for more deta
 <img src="visualize_graph_10.png" width="500">
 
 
-## Scripts
+## Codes
 
 Here is a brief description of the codes included:
 
@@ -51,13 +51,18 @@ The libraries required for training the models and compute some statistics are:
 * `scipy`
 * `sklearn`
 * `optuna` (only for optimization in `hyperparams_optimization.py`)
+* [`Pylians`](https://pylians3.readthedocs.io/en/master/) (only for computing power spectra in `ps_test.py`)
 
 
 ## Usage
 
+The codes implemented here are designed to train GNNs for two tasks. The desired task is chosen in `hyperparameters.py` with the `outmode` flag:
+1. Infer cosmological parameters from galaxy catalogues. Set `outmode = "cosmo"`.
+2. Predict the power spectrum from galaxy catalogues. Set `outmode = "ps"`.
+
 These are some advices to employ the scripts described above:
 1. To perform a search of the optimal hyperparameters, run `hyperparams_optimization.py`.
-2. To train a model with a given set of parameters defined in `hyperparameters.py`, run `main.py`. The hyperparameters currently present in `hyperparameters.py` correspond to the best optimal values for each suite when all galactic features are employed (see the paper).
+2. To train a model with a given set of parameters defined in `hyperparameters.py`, run `main.py`. The hyperparameters currently present in `hyperparameters.py` correspond to the best optimal values for each suite when all galactic features are employed (see the paper). Modify it accordingly to the task.
 3. Once a model is trained, run `crosstest.py` to test in the training simulation suite and cross test it in the other one included in CAMELS (IllustrisTNG and SIMBA).
 
 

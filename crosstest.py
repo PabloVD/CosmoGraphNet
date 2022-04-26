@@ -1,7 +1,7 @@
 #------------------------------------------------
 # Test a model already trained
 # Author: Pablo Villanueva Domingo
-# Last update: 5/11/21
+# Last update: 3/21
 #------------------------------------------------
 
 from main import *

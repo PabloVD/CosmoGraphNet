@@ -1,3 +1,9 @@
+#----------------------------------------------------
+# Routine for loading the CAMELS galaxy catalogues
+# Author: Pablo Villanueva Domingo
+# Last update: 4/22
+#----------------------------------------------------
+
 import h5py
 from torch_geometric.data import Data, DataLoader
 from Source.constants import *
@@ -6,6 +12,7 @@ import scipy.spatial as SS
 
 Nstar_th = 20   # Minimum number of stellar particles required to consider a galaxy
 
+# Normalize CAMELS parameters
 def normalize_params(params):
 
     minimum = np.array([0.1, 0.6, 0.25, 0.25, 0.5, 0.5])
@@ -13,12 +20,16 @@ def normalize_params(params):
     params = (params - minimum)/(maximum - minimum)
     return params
 
+# Normalize power spectrum
 def normalize_ps(ps):
     mean, std = ps.mean(axis=0), ps.std(axis=0)
     normps = (ps - mean)/std
     return normps
 
+# Compute KDTree and get edges and edge features
 def get_edges(pos, r_link, use_loops):
+
+    # 1. Get edges
 
     # Create the KDTree and look for pairs within a distance r_link
     # Boxsize normalize to 1
@@ -37,35 +48,36 @@ def get_edges(pos, r_link, use_loops):
     edge_index = edge_index.reshape((2,-1))
     num_pairs = edge_index.shape[1]
 
-    # Edge attributes
+    # 2. Get edge attributes
+
     row, col = edge_index
     diff = pos[row]-pos[col]
 
-    # Correct boundaries in distances
+    # Take into account periodic boundary conditions, correcting the distances
     for i, pos_i in enumerate(diff):
-        #outbound=False
         for j, coord in enumerate(pos_i):
             if coord > r_link:
-                #outbound=True
                 diff[i,j] -= 1.  # Boxsize normalize to 1
             elif -coord > r_link:
-                #outbound=True
                 diff[i,j] += 1.  # Boxsize normalize to 1
-        #if outbound: numbounds+=1
 
+    # Get translational and rotational invariant features
+    # Distance
     dist = np.linalg.norm(diff, axis=1)
+    # Centroid of galaxy catalogue
     centroid = np.mean(pos,axis=0)
+    # Unit vectors of node, neighbor and difference vector
     unitrow = (pos[row]-centroid)/np.linalg.norm((pos[row]-centroid), axis=1).reshape(-1,1)
     unitcol = (pos[col]-centroid)/np.linalg.norm((pos[col]-centroid), axis=1).reshape(-1,1)
     unitdiff = diff/dist.reshape(-1,1)
+    # Dot products between unit vectors
     cos1 = np.array([np.dot(unitrow[i,:].T,unitcol[i,:]) for i in range(num_pairs)])
     cos2 = np.array([np.dot(unitrow[i,:].T,unitdiff[i,:]) for i in range(num_pairs)])
-
-    #print(edge_index.shape, cos1.shape, cos2.shape, dist.shape)
+    # Normalize distance by linking radius
     dist /= r_link
-    edge_attr = np.concatenate([dist.reshape(-1,1), cos1.reshape(-1,1), cos2.reshape(-1,1)], axis=1)
 
-    #print(pos.shape, edge_index.shape, edge_attr.shape)
+    # Concatenate to get all edge attributes
+    edge_attr = np.concatenate([dist.reshape(-1,1), cos1.reshape(-1,1), cos2.reshape(-1,1)], axis=1)
 
     # Add loops
     if use_loops:
@@ -78,90 +90,54 @@ def get_edges(pos, r_link, use_loops):
         edge_attr = np.append(edge_attr, atrloops, 0)
     edge_index = edge_index.astype(int)
 
-    #print(pos.shape, edge_index.shape, edge_attr.shape)
-
-
-
-    #print(edge_index.shape, edge_attr.shape)
-
-
-    """
-    diff = (pos[row]-pos[col])/r_link
-
-    #print(diff.shape, edge_index.shape, pos.shape)
-    #numbounds = 0
-
-    # Correct boundaries in distances
-    for i, pos_i in enumerate(diff):
-        #outbound=False
-        for j, coord in enumerate(pos_i):
-            if coord > 1.:
-                #outbound=True
-                diff[i,j] -= 1./r_link  # Boxsize normalize to 1
-            elif -coord > 1.:
-                #outbound=True
-                diff[i,j] += 1./r_link  # Boxsize normalize to 1
-        #if outbound: numbounds+=1
-
-    edge_attr = np.concatenate([diff, np.linalg.norm(diff, axis=1, keepdims=True)], axis=1)
-    #print(edge_attr[:,3].min(), edge_attr[:,3].max())
-    #print(diff.shape[0], numbounds)
-    """
-
     return edge_index, edge_attr
 
-######################################################################################
-# This routine reads the galaxies from a simulation and
-# root ------> folder containing all simulations with their galaxy catalogues
-# sim -------> 'IllustrisTNG' or 'SIMBA'
-# suite -----> 'LH' or 'CV'
-# number ----> number of the simulation
-# snapnum ---> snapshot number (choose depending of the desired redshift)
-# BoxSize ---> size of the simulation box in Mpc/h
-# Nstar_th -----> galaxies need to contain at least Nstar_th stars
-# k ---------> number of neighbors
-# param_file -> file with the value of the cosmological + astrophysical parameters
-def sim_graph(simnumber,param_file,hparams):
 
+# Routine to create a cosmic graph from a galaxy catalogue
+# simnumber: number of simulation
+# param_file: file with the value of the cosmological + astrophysical parameters
+# hparams: hyperparameters class
+def sim_graph(simnumber, param_file, hparams):
+
+    # Get some hyperparameters
     simsuite,simset,r_link,only_positions,outmode,pred_params = hparams.simsuite,hparams.simset,hparams.r_link,hparams.only_positions,hparams.outmode,hparams.pred_params
 
-    # get the name of the galaxy catalogue
+    # Name of the galaxy catalogue
     simpath = simpathroot + simsuite + "/"+simset+"_"
     catalogue = simpath + str(simnumber)+"/fof_subhalo_tab_0"+hparams.snap+".hdf5"
 
-    # read the catalogue
+    # Read the catalogue
     f     = h5py.File(catalogue, 'r')
     pos   = f['/Subhalo/SubhaloPos'][:]/boxsize
     Mstar = f['/Subhalo/SubhaloMassType'][:,4] #Msun/h
-    SubhaloVel = f["Subhalo/SubhaloVel"][:]
     Rstar = f["Subhalo/SubhaloHalfmassRadType"][:,4]
     Metal = f["Subhalo/SubhaloStarMetallicity"][:]
     Vmax = f["Subhalo/SubhaloVmax"][:]
     Nstar = f['/Subhalo/SubhaloLenType'][:,4]       #number of stars
     f.close()
 
-    # some simulations are slightly outside the box
+    # Some simulations are slightly outside the box, correct it
     pos[np.where(pos<0.0)]+=1.0
     pos[np.where(pos>1.0)]-=1.0
 
-    # select only galaxies with more than 10 star particles
+    # Select only galaxies with more than Nstar_th star particles
     indexes = np.where(Nstar>Nstar_th)[0]
     pos     = pos[indexes]
     Mstar   = Mstar[indexes]
-    SubhaloVel = SubhaloVel[indexes]
     Rstar   = Rstar[indexes]
     Metal   = Metal[indexes]
     Vmax   = Vmax[indexes]
 
     # Get the output to be predicted by the GNN, either the cosmo parameters or the power spectrum
     if outmode=="cosmo":
-        # read the value of the cosmological & astrophysical parameters
+        # Read the value of the cosmological & astrophysical parameters
         paramsfile = np.loadtxt(param_file, dtype=str)
         params = np.array(paramsfile[simnumber,1:-1],dtype=np.float32)
         params = normalize_params(params)
-        params = params[:pred_params]
+        params = params[:pred_params]   # Consider only the first parameters, up to pred_params
         y = np.reshape(params, (1,params.shape[0]))
 
+    # Read the power spectra
     elif outmode=="ps":
 
         ps = np.load(param_file)
@@ -170,42 +146,30 @@ def sim_graph(simnumber,param_file,hparams):
         #ps = normalize_ps(ps)
         y = np.reshape(ps, (1,ps_size))
 
-
-    """
-    # compute the number of pairs
-    nodes = pos.shape[0]
-    u      = np.zeros((1,2),       dtype=np.float32)
-    u[0,0] = np.log10(np.sum(Mstar))
-    u[0,1] = np.log10(nodes)
-    """
+    # Number of galaxies as global feature
     u = np.log10(pos.shape[0]).reshape(1,1)
 
     Mstar = np.log10(1.+ Mstar)
-    #SubhaloVel = np.log10(1.+SubhaloVel)
-    SubhaloVel/=100.
     Rstar = np.log10(1.+ Rstar)
     Metal = np.log10(1.+ Metal)
     Vmax = np.log10(1. + Vmax)
+
+    # Node features
     tab = np.column_stack((Mstar, Rstar, Metal, Vmax))
-    #tab = Vmax.reshape(-1,1)
-
-    if only_positions:
-        #u   = np.zeros((1,2), dtype=np.float32) # not used
-        tab = np.zeros_like(pos[:,:1])   # not really used
-        use_loops = False
-    else:
-        use_loops = True#"""
-
-    #use_loops = False
-
+    #tab = Vmax.reshape(-1,1)       # For using only Vmax
     x = torch.tensor(tab, dtype=torch.float32)
 
-    #use_loops = False
-    edge_index, edge_attr = get_edges(pos, r_link, use_loops)
-    #edge_index = get_edges(pos, r_link)
-    #edge_index = None
+    # Use loops if node features are considered only
+    if only_positions:
+        tab = np.zeros_like(pos[:,:1])   # Node features not really used
+        use_loops = False
+    else:
+        use_loops = True
 
-    # get the graph
+    # Get edges and edge features
+    edge_index, edge_attr = get_edges(pos, r_link, use_loops)
+
+    # Construct the graph
     graph = Data(x=x,
                  y=torch.tensor(y, dtype=torch.float32),
                  u=torch.tensor(u, dtype=torch.float32),
@@ -213,54 +177,8 @@ def sim_graph(simnumber,param_file,hparams):
                  edge_attr=torch.tensor(edge_attr, dtype=torch.float32))
 
     return graph
-######################################################################################
-"""
-######################################################################################
-# This routine creates the dataset for the considered mode
-# mode -------------> 'train', 'valid', 'test' or 'all'
-# seed -------------> random seed to split simulations among train/valid/test
-# sims -------------> total number of simulations
-# root -------------> folder containing all simulations with their galaxy catalogues
-# sim --------------> 'IllustrisTNG' or 'SIMBA'
-# suite ------------> 'LH' or 'CV'
-# number -----------> number of the simulation
-# snapnum ----------> snapshot number (choose depending of the desired redshift)
-# BoxSize ----------> size of the simulation box in Mpc/h
-# Nstar_th --> galaxies need to contain at least Nstar_th stars
-# k ----------------> number of neighbors
-# param_file -------> file with the value of the cosmo & astro parameters
-# batch_size -------> batch size
-# num_workers ------> number of workers to load the data
-# shuffle ----------> whether randomly shuffle the data in the data loader
-def create_dataset(mode, seed, sims, root, sim, suite, snapnum, BoxSize,
-                   Nstar_th, k, param_file, batch_size, num_workers=1,
-                   shuffle=True):
 
 
-
-    # get the offset and size of the considered mode
-    if   mode=='train':  offset, size = int(0.0*sims), int(0.8*sims)
-    elif mode=='valid':  offset, size = int(0.8*sims), int(0.1*sims)
-    elif mode=='test':   offset, size = int(0.9*sims), int(0.1*sims)
-    elif mode=='all':    offset, size = int(0.0*sims), int(1.0*sims)
-    else:                raise Exception('wrong mode!')
-
-    # randomly shuffle the simulations. Instead of 0 1 2 3...999 have a
-    # random permutation. E.g. 5 9 0 29...342
-    np.random.seed(seed)
-    numbers = np.arange(sims) #shuffle sims not maps
-    np.random.shuffle(numbers)
-    numbers = numbers[offset:offset+size] #select indexes of mode
-
-    # get the dataset
-    dataset = []
-    for i in numbers:
-        dataset.append(sim_graph(root,sim,suite,i,snapnum,BoxSize,
-                                 Nstar_th,k,param_file))
-
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
-                      num_workers=num_workers)
-"""
 # Split training and validation sets
 def split_datasets(dataset):
 
@@ -283,13 +201,9 @@ def split_datasets(dataset):
 ######################################################################################
 
 # Main routine to load data and create the dataset
-# simsuite: simulation suite, either "IllustrisTNG" or "SIMBA"
-# simset: set of simulations:
-#   CV: Use simulations with fiducial cosmological and astrophysical parameters, but different random seeds (27 simulations total)
-#   LH: Use simulations over latin-hypercube, varying over cosmological and astrophysical parameters, and different random seeds (1000 simulations total)
-# n_sims: number of simulations, maximum 27 for CV and 1000 for LH
 def create_dataset(hparams):
 
+    # Target file depending on the task: inferring cosmo parameters or predicting power spectrum
     if hparams.outmode == "cosmo":
         param_file = "/projects/QUIJOTE/CAMELS/Sims/CosmoAstroSeed_params_"+hparams.simsuite+".txt"
     elif hparams.outmode == "ps":
@@ -311,8 +225,8 @@ def create_dataset(hparams):
         # Add other snapshots from other redshifts
         # Snapshot redshift
         # 004: z=3, 010: z=2, 014: z=1.5, 018: z=1, 024: z=0.5, 033: z=0
-        for snap in [24,18,14,10]:
-        #for snap in [18,10]:
+        #for snap in [24,18,14,10]:
+        for snap in [18,10]:
 
             hparams.snap = str(snap)
 

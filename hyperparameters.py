@@ -1,5 +1,10 @@
+#----------------------------------------------------
+# Hyperparameters definition
+# Author: Pablo Villanueva Domingo
+# Last update: 4/22
+#----------------------------------------------------
 
-
+# Hyperparameters class
 class hyperparameters():
     def __init__(self, outmode, only_positions, learning_rate, weight_decay, n_layers, hidden_channels, r_link, n_epochs, simsuite, simset="LH", n_sims=1000, training=True, pred_params=2):
 
@@ -49,14 +54,32 @@ class hyperparameters():
         return new_simsuite
 
 
+#--- HYPERPARAMETER CHOICES ---#
+
+#"""
+# IllustrisTNG best model
 hparams = hyperparameters(outmode = "cosmo",                        # Choose the output to be predicted, either the cosmological parameters ("cosmo") or the power spectrum ("ps")
                           only_positions = 0,                       # 1 for using only positions as features, 0 for using additional galactic features
-                          learning_rate = 0.0005061466694296257,    # Learning rate
+                          learning_rate = 1.619e-07,                # Learning rate
                           weight_decay = 1.e-07,                    # Weight decay
-                          n_layers = 1,                             # Number of hidden graph layers
-                          r_link = 0.06952349951836213,             # Linking radius
-                          hidden_channels = 128,                    # Hidden channels
+                          n_layers = 2,                             # Number of hidden graph layers
+                          r_link = 0.015,                           # Linking radius
+                          hidden_channels = 64,                     # Hidden channels
                           n_epochs = 300,                           # Number of epochs
                           simsuite = "IllustrisTNG",                # Simulation suite, choose between "IllustrisTNG" and "SIMBA"
                           pred_params = 1                           # Number of cosmo/astro params to be predicted, starting from Omega_m, sigma_8, etc. (Only for outmode = "cosmo")
                           )
+"""
+# SIMBA best model
+hparams = hyperparameters(outmode = "cosmo",                        # Choose the output to be predicted, either the cosmological parameters ("cosmo") or the power spectrum ("ps")
+                          only_positions = 0,                       # 1 for using only positions as features, 0 for using additional galactic features
+                          learning_rate = 1.087e-06,                # Learning rate
+                          weight_decay = 1.e-07,                    # Weight decay
+                          n_layers = 4,                             # Number of hidden graph layers
+                          r_link = 0.0148,                          # Linking radius
+                          hidden_channels = 64,                     # Hidden channels
+                          n_epochs = 300,                           # Number of epochs
+                          simsuite = "SIMBA",                       # Simulation suite, choose between "IllustrisTNG" and "SIMBA"
+                          pred_params = 1                           # Number of cosmo/astro params to be predicted, starting from Omega_m, sigma_8, etc. (Only for outmode = "cosmo")
+                          )
+#"""
