@@ -1,13 +1,13 @@
 # CosmoGraphNet
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6485804.svg)](https://doi.org/10.5281/zenodo.6485804)
-[![arXiv](https://img.shields.io/badge/arXiv-2204.xxxxx-B31B1B.svg)](http://arxiv.org/abs/2204.xxxxx)
+[![arXiv](https://img.shields.io/badge/arXiv-2204.13713-B31B1B.svg)](http://arxiv.org/abs/2204.13713)
 
 Graph Neural Networks to predict the cosmological parameters and the galaxy power spectrum from galaxy catalogues.
 
 A graph is created from a galaxy catalogue with information about the 3D position and intrinsic galactic properties. A Graph Neural Network is then applied to infer the cosmological parameters or the galaxy power spectrum. Galaxy catalogues extracted from the [CAMELS](https://camels.readthedocs.io/en/latest/index.html) hydrodynamic simulations, specially suited for Machine Learning purposes. Neural nets architectures are defined making use of the package [PyTorch-geometric](https://pytorch-geometric.readthedocs.io/en/latest/).
 
-See the paper [arXiv:2204.xxxxx](https://arxiv.org/abs/2204.xxxxx) for more details.
+See the paper [arXiv:2204.13713](https://arxiv.org/abs/2204.13713) for more details.
 
 <img src="visualize_graph_10.png" width="500">
 
@@ -70,7 +70,7 @@ These are some advices to employ the scripts described above:
 
 ## Citation
 
-If you use the code, please link this repository, and cite [arXiv:2204.xxxxx](https://arxiv.org/abs/2204.xxxxx) and the DOI [10.5281/zenodo.6485804](https://doi.org/10.5281/zenodo.6485804).
+If you use the code, please link this repository, and cite [arXiv:2204.13713](https://arxiv.org/abs/2204.13713) and the DOI [10.5281/zenodo.6485804](https://doi.org/10.5281/zenodo.6485804).
 
 
 ## Contact

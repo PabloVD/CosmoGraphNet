@@ -5,10 +5,10 @@
 #----------------------------------------------------------------------
 
 import time, datetime
-from Source.networks import *
 from Source.plotting import *
 from Source.load_data import *
 from torch_geometric.utils import degree
+from torch_cluster import radius_graph
 
 fontsize = 8
 
