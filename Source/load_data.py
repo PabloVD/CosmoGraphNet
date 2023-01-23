@@ -45,7 +45,7 @@ def get_edges(pos, r_link, use_loops):
     edge_index = edge_index.astype(int)
 
     # Write in pytorch-geometric format
-    edge_index = edge_index.reshape((2,-1))
+    edge_index = edge_index.T
     num_pairs = edge_index.shape[1]
 
     # 2. Get edge attributes
@@ -62,17 +62,43 @@ def get_edges(pos, r_link, use_loops):
                 diff[i,j] += 1.  # Boxsize normalize to 1
 
     # Get translational and rotational invariant features
+    
     # Distance
     dist = np.linalg.norm(diff, axis=1)
+    
     # Centroid of galaxy catalogue
     centroid = np.mean(pos,axis=0)
-    # Unit vectors of node, neighbor and difference vector
-    unitrow = (pos[row]-centroid)/np.linalg.norm((pos[row]-centroid), axis=1).reshape(-1,1)
-    unitcol = (pos[col]-centroid)/np.linalg.norm((pos[col]-centroid), axis=1).reshape(-1,1)
+
+    #Vectors of node and neighbor
+    row = (pos[row] - centroid)
+    col = (pos[col] - centroid)
+
+   # Take into account periodic boundary conditions: row and col
+    for i, pos_i in enumerate(row):
+        for j, coord in enumerate(pos_i):
+            if coord > 0.5:
+                row[i,j] -= 1.  # Boxsize normalize to 1
+                
+            elif -coord > 0.5:
+                row[i,j] += 1.  # Boxsize normalize to 1                                                
+
+    for i, pos_i in enumerate(col):
+        for j, coord in enumerate(pos_i):
+            if coord > 0.5:
+                col[i,j] -= 1.  # Boxsize normalize to 1
+                
+            elif -coord > 0.5:
+                col[i,j] += 1.  # Boxsize normalize to 1
+                
+    # Normalizing
+    unitrow = row/np.linalg.norm(row, axis = 1).reshape(-1, 1)
+    unitcol = col/np.linalg.norm(col, axis = 1).reshape(-1, 1)
     unitdiff = diff/dist.reshape(-1,1)
+    
     # Dot products between unit vectors
     cos1 = np.array([np.dot(unitrow[i,:].T,unitcol[i,:]) for i in range(num_pairs)])
     cos2 = np.array([np.dot(unitrow[i,:].T,unitdiff[i,:]) for i in range(num_pairs)])
+
     # Normalize distance by linking radius
     dist /= r_link
 
@@ -91,7 +117,6 @@ def get_edges(pos, r_link, use_loops):
     edge_index = edge_index.astype(int)
 
     return edge_index, edge_attr
-
 
 # Routine to create a cosmic graph from a galaxy catalogue
 # simnumber: number of simulation
